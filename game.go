@@ -23,6 +23,7 @@ type Game struct {
 	simulationFrameDelay int
 	panStart             rl.Vector2
 	cameraPanStart       rl.Vector2
+	generationCount      int
 }
 
 func NewGame() *Game {
@@ -80,8 +81,10 @@ func (g *Game) updateGameMode() {
 
 func (g *Game) updateReset() {
 	if rl.IsKeyPressed(rl.KeyR) {
+		g.mode = EditGameMode
 		g.cells = Cells{}
 		g.camera = rl.Camera2D{Zoom: 1}
+		g.generationCount = 0
 	}
 }
 
@@ -136,12 +139,13 @@ func (g *Game) simulateCells() {
 	}
 
 	deadCells := fillNeighbors(g.cells)
-	for deadCell := range deadCells {
-		alive := getLifeStatus(g.cells, deadCell, false)
+	for cell := range deadCells {
+		alive := getLifeStatus(g.cells, cell, false)
 		if alive {
-			result[deadCell] = true
+			result[cell] = true
 		}
 	}
 
 	g.cells = result
+	g.generationCount++
 }
