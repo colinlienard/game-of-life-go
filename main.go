@@ -18,18 +18,29 @@ func main() {
 	game := NewGame()
 
 	for !rl.WindowShouldClose() {
-		rl.BeginDrawing()
-
-		rl.BeginMode2D(game.camera)
-
-		rl.ClearBackground(rl.Black)
-
 		game.updateCameraPan()
 		game.updateCameraZoom()
 		game.updateGameMode()
+		game.updateReset()
 		game.updateSimulationSpeed()
 		game.updateCells()
 		game.simulateCells()
+
+		rl.BeginDrawing()
+
+		rl.ClearBackground(rl.Black)
+
+		rl.BeginMode2D(game.camera)
+
+		for cell := range game.cells {
+			rl.DrawRectangle(
+				int32(cell.X*CELL_SIZE),
+				int32(cell.Y*CELL_SIZE),
+				int32(CELL_SIZE),
+				int32(CELL_SIZE),
+				rl.White,
+			)
+		}
 
 		rl.EndMode2D()
 
@@ -45,11 +56,9 @@ func drawUI(game *Game) {
 		rl.DrawText("Edit", 300, 8, 16, rl.Blue)
 	} else {
 		rl.DrawText("Stop with 's'", 8, 8, 16, rl.Gray)
-		rl.DrawText("Pause with 'p'", 8, 8+20, 16, rl.Gray)
-		rl.DrawText("Reset with 'r'", 8, 8+20*2, 16, rl.Gray)
-		rl.DrawText("Increment speed with 'i'", 8, 8+20*3, 16, rl.Gray)
-		rl.DrawText("Decrement speed with 'd'", 8, 8+20*4, 16, rl.Gray)
-		rl.DrawText(fmt.Sprintf("Simulation speed: %d/s", 120/game.simulationSpeed), 300, 8, 16, rl.Blue)
+		rl.DrawText("Reset with 'r'", 8, 8+20, 16, rl.Gray)
+		rl.DrawText("Increment speed with 'i'", 8, 8+20*2, 16, rl.Gray)
+		rl.DrawText("Decrement speed with 'd'", 8, 8+20*3, 16, rl.Gray)
+		rl.DrawText(fmt.Sprintf("Simulation (%dfps)", rl.GetFPS()/int32(game.simulationSpeed)), 300, 8, 16, rl.Blue)
 	}
-	rl.DrawFPS(600, 8)
 }

@@ -13,8 +13,10 @@ const (
 	SimulationGameMode
 )
 
+type Cells map[rl.Vector2]bool
+
 type Game struct {
-	cells                map[rl.Vector2]bool
+	cells                Cells
 	camera               rl.Camera2D
 	mode                 GameMode
 	simulationSpeed      int
@@ -25,6 +27,7 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
+		cells:           Cells{},
 		camera:          rl.Camera2D{Zoom: 1},
 		mode:            EditGameMode,
 		simulationSpeed: 21,
@@ -37,14 +40,15 @@ func (g *Game) updateCameraZoom() {
 		return
 	}
 
-	centerX := (float32(rl.GetScreenWidth())/2 - camera.Offset.X) / camera.Zoom
-	centerY := (float32(rl.GetScreenHeight())/2 - camera.Offset.Y) / camera.Zoom
+	centerX := (float32(rl.GetScreenWidth())/2 - g.camera.Offset.X) / g.camera.Zoom
+	centerY := (float32(rl.GetScreenHeight())/2 - g.camera.Offset.Y) / g.camera.Zoom
 
-	if scroll < 0 && g.camera.Zoom-CAMERA_ZOOM_SPEED > 0.1 {
+	if scroll < 0 {
 		g.camera.Zoom -= CAMERA_ZOOM_SPEED
 	} else {
 		g.camera.Zoom += CAMERA_ZOOM_SPEED
 	}
+	g.camera.Zoom = max(g.camera.Zoom, 0.1)
 
 	g.camera.Offset.X = float32(rl.GetScreenWidth())/2 - centerX*g.camera.Zoom
 	g.camera.Offset.Y = float32(rl.GetScreenHeight())/2 - centerY*g.camera.Zoom
@@ -74,16 +78,23 @@ func (g *Game) updateGameMode() {
 	}
 }
 
+func (g *Game) updateReset() {
+	if rl.IsKeyPressed(rl.KeyR) {
+		g.cells = Cells{}
+		g.camera = rl.Camera2D{Zoom: 1}
+	}
+}
+
 func (g *Game) updateSimulationSpeed() {
 	if g.mode == EditGameMode {
 		return
 	}
-	if rl.IsKeyPressed(rl.KeyI) {
+	if rl.IsKeyPressed(rl.KeyD) {
 		g.simulationSpeed += SIMULATION_SPEED_THRESHOLD
-	} else if rl.IsKeyPressed(rl.KeyD) && g.simulationSpeed-SIMULATION_SPEED_THRESHOLD >= 1 {
-		// TODO: use Math.min or something
+	} else if rl.IsKeyPressed(rl.KeyI) {
 		g.simulationSpeed -= SIMULATION_SPEED_THRESHOLD
 	}
+	g.simulationSpeed = max(g.simulationSpeed, 1)
 }
 
 func (g *Game) updateCells() {
@@ -92,7 +103,7 @@ func (g *Game) updateCells() {
 	}
 
 	mousePos := rl.GetMousePosition()
-	worldPos := rl.GetScreenToWorld2D(mousePos, camera)
+	worldPos := rl.GetScreenToWorld2D(mousePos, g.camera)
 	x := float32(math.Floor(float64(worldPos.X / CELL_SIZE)))
 	y := float32(math.Floor(float64(worldPos.Y / CELL_SIZE)))
 	newCell := rl.Vector2{X: x, Y: y}
@@ -105,20 +116,32 @@ func (g *Game) updateCells() {
 }
 
 func (g *Game) simulateCells() {
-	result := []rl.Vector2{}
-	deadCells := fillAroundCells(cells)
+	if g.mode != SimulationGameMode {
+		return
+	}
 
-	for _, deadCell := range deadCells {
-		alive := getLifeStatus(cells, deadCell, false)
+	if g.simulationFrameDelay < g.simulationSpeed {
+		g.simulationFrameDelay++
+		return
+	}
+	g.simulationFrameDelay = 0
+
+	result := Cells{}
+
+	for cell := range g.cells {
+		alive := getLifeStatus(g.cells, cell, true)
 		if alive {
-			result = append(result, deadCell)
+			result[cell] = true
 		}
 	}
 
-	for _, cell := range cells {
-		alive := getLifeStatus(cells, cell, true)
+	deadCells := fillNeighbors(g.cells)
+	for deadCell := range deadCells {
+		alive := getLifeStatus(g.cells, deadCell, false)
 		if alive {
-			result = append(result, cell)
+			result[deadCell] = true
 		}
 	}
+
+	g.cells = result
 }
